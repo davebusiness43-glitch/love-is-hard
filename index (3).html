@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Netflix</title>
+  <link rel="icon" href="https://assets.nflxext.com/us/ffe/siteui/common/icons/nficon2016.ico" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --red: #E50914; --dark: #141414; }
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      background: #000; color: #fff; overflow: hidden;
+    }
+
+    /* ═══════════════════════════════════
+       SCREEN 0 — SPLASH (click to start)
+    ═══════════════════════════════════ */
+    #splash-screen {
+      position: fixed; inset: 0; z-index: 2000;
+      background: #000;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 48px;
+    }
+    .splash-logo {
+      width: min(320px, 70vw);
+      animation: logoPulse 2.4s ease-in-out infinite;
+    }
+    @keyframes logoPulse {
+      0%,100% { filter: drop-shadow(0 0 0px #E50914); transform: scale(1); }
+      50%      { filter: drop-shadow(0 0 28px #E50914cc); transform: scale(1.04); }
+    }
+    #splash-btn {
+      background: var(--red);
+      border: none; color: #fff;
+      padding: 16px 52px;
+      font-size: 20px; font-weight: 700;
+      border-radius: 6px; cursor: pointer;
+      letter-spacing: 0.06em;
+      box-shadow: 0 4px 24px rgba(229,9,20,0.5);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    #splash-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 32px rgba(229,9,20,0.8);
+    }
+    .splash-tagline {
+      color: #aaa; font-size: 15px; letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    /* ═══════════════════════════════════
+       SCREEN 1 — INTRO VIDEO
+    ═══════════════════════════════════ */
+    #intro-screen {
+      position: fixed; inset: 0; z-index: 1900;
+      background: #000;
+      display: none;
+      align-items: center; justify-content: center;
+    }
+    /* Netflix N logo overlay top-left during video */
+    #intro-nlogo {
+      position: absolute; top: 28px; left: 36px;
+      z-index: 10;
+      width: 52px;
+      opacity: 0;
+      transition: opacity 0.6s;
+    }
+    #intro-screen.playing #intro-nlogo { opacity: 1; }
+    #intro-video {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    #intro-skip {
+      position: absolute; bottom: 38px; right: 38px;
+      background: rgba(20,20,20,0.75);
+      border: 2px solid rgba(255,255,255,0.6);
+      color: #fff; padding: 11px 26px;
+      font-size: 15px; cursor: pointer;
+      border-radius: 4px; letter-spacing: 0.04em;
+      transition: background 0.2s, border-color 0.2s;
+      backdrop-filter: blur(4px);
+    }
+    #intro-skip:hover {
+      background: rgba(229,9,20,0.7);
+      border-color: var(--red);
+    }
+
+    /* ═══════════════════════════════════
+       SCREEN 2 — PROFILES
+    ═══════════════════════════════════ */
+    #profile-screen {
+      display: none;
+      position: fixed; inset: 0; z-index: 1800;
+      background: var(--dark);
+      flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 44px;
+    }
+    .ps-logo {
+      position: absolute; top: 24px; left: 36px;
+      height: 38px;
+    }
+    #profile-screen h1 {
+      font-size: clamp(24px, 3.4vw, 48px);
+      font-weight: 400; color: #fff; letter-spacing: 0.01em;
+    }
+    .profiles-row {
+      display: flex; gap: 28px; align-items: flex-start;
+      flex-wrap: wrap; justify-content: center;
+    }
+    .profile-card {
+      display: flex; flex-direction: column;
+      align-items: center; gap: 14px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .profile-card:hover { transform: scale(1.07); }
+    .profile-card:hover .profile-name { color: #fff; }
+    .profile-avatar {
+      width: 140px; height: 140px;
+      border-radius: 6px;
+      object-fit: cover;
+      border: 3px solid transparent;
+      transition: border-color 0.2s;
+      background: #333;
+    }
+    .profile-card:hover .profile-avatar { border-color: #fff; }
+    .profile-name { font-size: 17px; color: #aaa; font-weight: 400; }
+
+    /* ═══════════════════════════════════
+       SCREEN 3 — MAIN PAGE
+    ═══════════════════════════════════ */
+    #main-page { display: none; min-height: 100vh; overflow-y: auto; overflow-x: hidden; }
+
+    /* Navbar */
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      padding: 18px 52px;
+      display: flex; align-items: center; gap: 30px;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.88) 0%, transparent 100%);
+      transition: background 0.3s;
+    }
+    .navbar.scrolled { background: rgba(20,20,20,0.97); }
+    .navbar-logo { height: 30px; }
+    .navbar-links { display: flex; gap: 18px; list-style: none; }
+    .navbar-links a { color: #e5e5e5; text-decoration: none; font-size: 14px; }
+    .navbar-links a:hover { color: #b3b3b3; }
+    .navbar-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+    .navbar-right img { width: 32px; height: 32px; border-radius: 4px; cursor: pointer; }
+
+    /* Hero */
+    .hero { position: relative; width: 100%; height: 100vh; overflow: hidden; }
+    #bg-video {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%; object-fit: cover; z-index: 0;
+    }
+    .hero-gradient {
+      position: absolute; inset: 0;
+      background:
+        linear-gradient(to right, rgba(20,20,20,0.88) 0%, rgba(20,20,20,0.35) 55%, transparent 100%),
+        linear-gradient(to top, rgba(20,20,20,1) 0%, transparent 45%);
+      z-index: 1;
+    }
+    .hero-content {
+      position: absolute; bottom: 28%; left: 56px;
+      z-index: 2; max-width: 640px;
+      animation: slideUp 0.8s ease forwards;
+    }
+    @keyframes slideUp {
+      from { opacity:0; transform:translateY(32px); }
+      to   { opacity:1; transform:translateY(0); }
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(0,0,0,0.45);
+      border: 1px solid rgba(255,255,255,0.28);
+      border-radius: 4px; padding: 6px 14px;
+      font-size: 13px; color: #ddd;
+      margin-bottom: 16px; letter-spacing: 0.06em;
+    }
+    .hero-title {
+      font-size: clamp(2.4rem, 5vw, 4.4rem);
+      font-weight: 700; line-height: 1.06; color: #fff;
+      margin-bottom: 14px;
+      text-shadow: 2px 4px 18px rgba(0,0,0,0.75);
+    }
+    .hero-title span { color: var(--red); }
+    .hero-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+    .stars { display: flex; gap: 3px; }
+    .star { color: var(--red); font-size: 22px; }
+    .hero-tag {
+      display: inline-block;
+      background: rgba(229,9,20,0.12);
+      border: 1.5px solid var(--red); color: var(--red);
+      padding: 5px 16px; border-radius: 20px;
+      font-size: 13px; font-weight: 700;
+      cursor: pointer; text-decoration: none;
+      letter-spacing: 0.06em;
+      transition: background 0.2s, color 0.2s;
+    }
+    .hero-tag:hover { background: var(--red); color: #fff; }
+    .hero-description {
+      font-size: 16.5px; line-height: 1.65; color: #e0e0e0;
+      margin-bottom: 28px;
+      text-shadow: 1px 2px 8px rgba(0,0,0,0.8);
+    }
+    .hero-buttons { display: flex; gap: 12px; align-items: center; }
+    .btn-play {
+      display: flex; align-items: center; gap: 10px;
+      background: #fff; color: #000; border: none;
+      padding: 14px 32px; border-radius: 5px;
+      font-size: 18px; font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.12s;
+    }
+    .btn-play:hover { background: rgba(255,255,255,0.82); transform: scale(1.02); }
+    .btn-play svg { width: 24px; height: 24px; flex-shrink: 0; }
+    .btn-info {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(109,109,110,0.7); color: #fff; border: none;
+      padding: 14px 24px; border-radius: 5px;
+      font-size: 17px; font-weight: 600; cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-info:hover { background: rgba(109,109,110,0.4); }
+
+    /* Content rows */
+    .content-section { background: var(--dark); padding: 24px 56px; }
+    .row-title { font-size: 20px; font-weight: 600; margin-bottom: 12px; color: #e5e5e5; }
+    .row-items { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 6px; }
+    .row-items::-webkit-scrollbar { display: none; }
+    .row-item {
+      flex-shrink: 0; width: 190px; height: 107px;
+      border-radius: 4px; overflow: hidden; cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s; position: relative;
+    }
+    .row-item:hover { transform: scale(1.07); box-shadow: 0 8px 24px rgba(0,0,0,0.8); z-index: 10; }
+    .row-item-overlay {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.28);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .row-item:hover .row-item-overlay { opacity: 1; }
+    .play-icon { color: #fff; font-size: 34px; }
+
+    .fade-in { animation: fadeIn 0.7s ease forwards; }
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+
+    @media (max-width: 768px) {
+      .hero-content { left: 22px; max-width: 92%; bottom: 22%; }
+      .navbar { padding: 14px 18px; }
+      .navbar-links { display: none; }
+      .content-section { padding: 18px 16px; }
+      #profile-screen h1 { font-size: 6.5vw; }
+      .profile-avatar { width: 100px; height: 100px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════
+     SCREEN 0 — SPLASH SCREEN (click to play)
+════════════════════════════════════════ -->
+<div id="splash-screen">
+  <!-- Full Netflix SVG Logo -->
+  <svg class="splash-logo" viewBox="0 0 111 30" xmlns="http://www.w3.org/2000/svg" aria-label="Netflix">
+    <path fill="#E50914" d="M105.062 14.28L111 30c-1.75-.25-3.499-.563-5.28-.845l-3.345-8.686-3.437 7.969c-1.687-.282-3.344-.376-5.031-.595l6.031-13.75L94.468 0h5.063l3.062 7.874L105.875 0h5.124l-5.937 14.28zM90.47 0h-4.594v27.501c1.5.094 3.062.157 4.594.25V0zm-8.937 26.688c-4.187-.313-8.375-.5-12.656-.5V0h4.687v21.875c2.657.094 5.375.28 8 .5v4.313zM64.25 10.657v4.25h-6.406V26H53.22V0h13.125v4.28h-8.5v6.375h6.406v.002zm-18.906-6.375h-5.5V26.001c-1.5 0-3 0-4.469.062V4.282h-5.5V.001h15.469v4.281zm-26.937 0v6.375h6.281v4.25H18.407V22H25v4h-11.22V0H25v4.282h-6.593zM6.75 0L.001 19.125V0H0v30h4.469l6.875-20.624V30h4.594V0H6.75z"/>
+  </svg>
+
+  <p class="splash-tagline">Une surprise rien que pour toi ✨</p>
+
+  <button id="splash-btn" onclick="startIntro()">
+    ▶ &nbsp; Regarder maintenant
+  </button>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN 1 — INTRO VIDEO
+════════════════════════════════════════ -->
+<div id="intro-screen">
+  <!-- Small Netflix N logo top-left -->
+  <img id="intro-nlogo"
+       src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Netflix_2015_N_logo.svg/300px-Netflix_2015_N_logo.svg.png"
+       alt="N" />
+
+  <video id="intro-video" playsinline>
+    <source src="netflix_intro_for_edit__edit__follow__netflix__1_.mp4" type="video/mp4" />
+  </video>
+
+  <button id="intro-skip" onclick="goToProfiles()">Passer &nbsp;▶</button>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN 2 — PROFILES
+════════════════════════════════════════ -->
+<div id="profile-screen">
+  <!-- Full Netflix logo top-left -->
+  <svg class="ps-logo" viewBox="0 0 111 30" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#E50914" d="M105.062 14.28L111 30c-1.75-.25-3.499-.563-5.28-.845l-3.345-8.686-3.437 7.969c-1.687-.282-3.344-.376-5.031-.595l6.031-13.75L94.468 0h5.063l3.062 7.874L105.875 0h5.124l-5.937 14.28zM90.47 0h-4.594v27.501c1.5.094 3.062.157 4.594.25V0zm-8.937 26.688c-4.187-.313-8.375-.5-12.656-.5V0h4.687v21.875c2.657.094 5.375.28 8 .5v4.313zM64.25 10.657v4.25h-6.406V26H53.22V0h13.125v4.28h-8.5v6.375h6.406v.002zm-18.906-6.375h-5.5V26.001c-1.5 0-3 0-4.469.062V4.282h-5.5V.001h15.469v4.281zm-26.937 0v6.375h6.281v4.25H18.407V22H25v4h-11.22V0H25v4.282h-6.593zM6.75 0L.001 19.125V0H0v30h4.469l6.875-20.624V30h4.594V0H6.75z"/>
+  </svg>
+
+  <h1>Qui regarde ?</h1>
+
+  <div class="profiles-row">
+    <div class="profile-card" onclick="goToMain()">
+      <img class="profile-avatar"
+           src="https://occ-0-1432-1433.1.nflxso.net/dnm/api/v6/vN7bi_My87NPKvsBoib006Llmh8=/AHm9STuyCxYWe4Q1QBKMlnFhwjJlZ_FhvGLDdBopOYDvNdXEoxDxjI0RmqIUYnDAgjg0gEd3HJRp1E/AvatarOf.gif"
+           alt="Ma vie" />
+      <span class="profile-name">Ma vie 1</span>
+    </div>
+    <div class="profile-card" onclick="goToMain()">
+      <img class="profile-avatar"
+           src="https://occ-0-1432-1433.1.nflxso.net/dnm/api/v6/vN7bi_My87NPKvsBoib006Llmh8=/AHm9STuVFHLx9HRmFQANVvKcDRETSSe_GCnKLN5IScQMCn4nPMXQ5cG-2sAWVWbnITPklp5GSnbI7os/AvatarOf.gif"
+           alt="Mon amour" />
+      <span class="profile-name">Mon amour 2</span>
+    </div>
+    <div class="profile-card" onclick="goToMain()">
+      <img class="profile-avatar"
+           src="https://occ-0-1432-1433.1.nflxso.net/dnm/api/v6/vN7bi_My87NPKvsBoib006Llmh8=/AHm9STv7xfqzwcMXfMV5DL6rSRJABTSRLuvMO0pU1OhOqZSJpXHLXiTUzVW1S0h_y8l1bE4oYnzqzQ/AvatarOf.gif"
+           alt="Ma lune" />
+      <span class="profile-name">Ma lune 3</span>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     SCREEN 3 — MAIN PAGE
+════════════════════════════════════════ -->
+<div id="main-page">
+  <nav class="navbar" id="navbar">
+    <svg class="navbar-logo" viewBox="0 0 111 30" xmlns="http://www.w3.org/2000/svg">
+      <path fill="#E50914" d="M105.062 14.28L111 30c-1.75-.25-3.499-.563-5.28-.845l-3.345-8.686-3.437 7.969c-1.687-.282-3.344-.376-5.031-.595l6.031-13.75L94.468 0h5.063l3.062 7.874L105.875 0h5.124l-5.937 14.28zM90.47 0h-4.594v27.501c1.5.094 3.062.157 4.594.25V0zm-8.937 26.688c-4.187-.313-8.375-.5-12.656-.5V0h4.687v21.875c2.657.094 5.375.28 8 .5v4.313zM64.25 10.657v4.25h-6.406V26H53.22V0h13.125v4.28h-8.5v6.375h6.406v.002zm-18.906-6.375h-5.5V26.001c-1.5 0-3 0-4.469.062V4.282h-5.5V.001h15.469v4.281zm-26.937 0v6.375h6.281v4.25H18.407V22H25v4h-11.22V0H25v4.282h-6.593zM6.75 0L.001 19.125V0H0v30h4.469l6.875-20.624V30h4.594V0H6.75z"/>
+    </svg>
+    <ul class="navbar-links">
+      <li><a href="#">Accueil</a></li>
+      <li><a href="#">Séries</a></li>
+      <li><a href="#">Films</a></li>
+      <li><a href="#">Nouveautés</a></li>
+      <li><a href="#">Ma liste</a></li>
+    </ul>
+    <div class="navbar-right">
+      <img src="https://occ-0-1432-1433.1.nflxso.net/dnm/api/v6/vN7bi_My87NPKvsBoib006Llmh8=/AHm9STuVFHLx9HRmFQANVvKcDRETSSe_GCnKLN5IScQMCn4nPMXQ5cG-2sAWVWbnITPklp5GSnbI7os/AvatarOf.gif" alt="Profil"/>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <video id="bg-video" autoplay muted loop playsinline>
+      <source src="cefrile_1.mp4" type="video/mp4" />
+    </video>
+    <div class="hero-gradient"></div>
+    <div class="hero-content">
+      <div class="hero-badge">✦ &nbsp; ORIGINAL NETFLIX</div>
+      <h1 class="hero-title">Happy Birth<span>Day</span><br/>My Love 🎂</h1>
+      <div class="hero-meta">
+        <div class="stars">
+          <span class="star">★</span><span class="star">★</span>
+          <span class="star">★</span><span class="star">★</span><span class="star">★</span>
+        </div>
+        <a href="#" class="hero-tag">❤ Year All Saison</a>
+      </div>
+      <p class="hero-description">
+        Depuis que tu es entrée dans ma vie, chaque jour est devenu une aventure que je n'aurais jamais osé rêver.<br/>
+        Tu es ma joie, ma force, mon étoile la plus brillante.<br/><br/>
+        En ce jour si spécial, je veux que tu saches combien tu comptes pour moi et à quel point je suis chanceux de t'avoir à mes côtés.<br/>
+        <strong style="color:#fff;">Joyeux Anniversaire mon amour ✨🎉</strong>
+      </p>
+      <div class="hero-buttons">
+        <button class="btn-play" onclick="alert('La vidéo arrive bientôt... 💝')">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          Lecture
+        </button>
+        <button class="btn-info">ℹ &nbsp; Plus d'infos</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="content-section">
+    <div class="row-title">Nos moments préférés 💕</div>
+    <div class="row-items">
+      <div class="row-item" style="background:linear-gradient(135deg,#e91e63,#9c27b0)"><div class="row-item-overlay"><span class="play-icon">▶</span></div></div>
+      <div class="row-item" style="background:linear-gradient(135deg,#ff5722,#e91e63)"><div class="row-item-overlay"><span class="play-icon">▶</span></div></div>
+      <div class="row-item" style="background:linear-gradient(135deg,#673ab7,#e91e63)"><div class="row-item-overlay"><span class="play-icon">▶</span></div></div>
+      <div class="row-item" style="background:linear-gradient(135deg,#f44336,#9c27b0)"><div class="row-item-overlay"><span class="play-icon">▶</span></div></div>
+      <div class="row-item" style="background:linear-gradient(135deg,#3f51b5,#e91e63)"><div class="row-item-overlay"><span class="play-icon">▶</span></div></div>
+      <div class="row-item" style="background:linear-gradient(135deg,#e91e63,#ff5722)"><div class="row-item-overlay"><span class="play-icon">▶</span></div></div>
+    </div>
+    <br/>
+    <div class="row-title">Les classiques de notre amour 🌙</div>
+    <div class="row-items">
+      <div class="row-item" style="background:linear-gradient(135deg,#009688,#1a237e)"><div class="row-item-overlay"><span class="play-icon">▶</span></div></div>
+      <div class="row-item" style="background:linear-gradient(135deg,#4caf50,#2196f3)"><div class="row-item-overlay"><span class="play-icon">▶</span></div></div>
+      <div class="row-item" style="background:linear-gradient(135deg,#ff9800,#e91e63)"><div class="row-item-overlay"><span class="play-icon">▶</span></div></div>
+      <div class="row-item" style="background:linear-gradient(135deg,#795548,#9c27b0)"><div class="row-item-overlay"><span class="play-icon">▶</span></div></div>
+      <div class="row-item" style="background:linear-gradient(135deg,#607d8b,#e91e63)"><div class="row-item-overlay"><span class="play-icon">▶</span></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function startIntro() {
+    document.getElementById('splash-screen').style.display = 'none';
+    const is = document.getElementById('intro-screen');
+    is.style.display = 'flex';
+    is.classList.add('playing');
+    const v = document.getElementById('intro-video');
+    v.play();
+    v.addEventListener('ended', goToProfiles);
+  }
+
+  function goToProfiles() {
+    document.getElementById('intro-screen').style.display = 'none';
+    const ps = document.getElementById('profile-screen');
+    ps.style.display = 'flex';
+    ps.classList.add('fade-in');
+  }
+
+  function goToMain() {
+    document.getElementById('profile-screen').style.display = 'none';
+    const mp = document.getElementById('main-page');
+    mp.style.display = 'block';
+    mp.classList.add('fade-in');
+    document.body.style.overflow = 'auto';
+    document.getElementById('bg-video').play();
+  }
+
+  window.addEventListener('scroll', () => {
+    const nav = document.getElementById('navbar');
+    if (nav) nav.classList.toggle('scrolled', window.scrollY > 50);
+  });
+</script>
+</body>
+</html>
